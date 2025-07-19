@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Neon Civil Dashboard - Professional Theme</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    /* New Professional Theme Colors */
+    :root {
+      --color-primary-bg: #1A202C; /* Deep dark blue/gray */
+      --color-secondary-bg: #2D3748; /* Slightly lighter dark blue/gray */
+      --color-card-bg: #151A21; /* Rich dark dark/black for articles/modal */
+      --color-task-base-bg: #2A3342; /* Deeper dark blue for task cards */
+      --color-text-light: #E2E8F0; /* Off-white/light gray */
+      --color-text-medium: #CBD5E0; /* Slightly darker light gray */
+      --color-accent-teal: #4FD1C5; /* Muted modern teal (kept for overall accents) */
+      --color-accent-blue: #63B3ED; /* Soft sky blue (kept for overall accents) */
+
+      /* Priority Progress Fill Colors (More muted) */
+      --color-progress-high: #B03A2E; /* Professional red (muted) */
+      --color-progress-medium: #D4AC0D; /* Muted gold/yellow */
+      --color-progress-low: #27AEAE; /* Darker, less vibrant teal */
+
+      /* Subtle Task Background Colors based on Priority (LIGHTENED) */
+      --color-task-bg-high: rgba(176, 58, 46, 0.15); /* Slightly lighter red tint */
+      --color-task-bg-medium: rgba(212, 172, 13, 0.15); /* Slightly lighter gold tint */
+      --color-task-bg-low: rgba(39, 174, 174, 0.15); /* Slightly lighter teal tint */
+
+
+      /* Other Priority Related Colors (for border-left or text icons) */
+      --color-priority-border-high: #E53E3E; /* Keep border more distinct */
+      --color-priority-border-medium: #ECC94B;
+      --color-priority-border-low: #4FD1C5;
+
+      /* Button Colors */
+      --color-button-bg: #3A475A; /* Darker gray-blue for buttons */
+      --color-button-text: var(--color-button-text); /* Light text */
+      --color-button-hover-bg: #4A566B; /* Slightly lighter on hover */
+      --color-button-shadow: rgba(0, 0, 0, 0.3); /* Subtle shadow */
+
+      /* Overdue Task Highlight */
+      --color-overdue-bg: rgba(229, 62, 62, 0.2); /* Soft red tint */
+      --color-overdue-border: #E53E3E; /* Red border */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--color-primary-bg);
+      color: var(--color-text-light);
+    }
+    header {
+      text-align: center;
+      padding: 20px;
+      background-color: var(--color-secondary-bg);
+      box-shadow: 0 0 15px rgba(79, 209, 197, 0.3); /* Subtle accent shadow */
+    }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 15px 20px;
+      background-color: var(--color-secondary-bg);
+      border-bottom: 1px solid #4A5568; /* A subtle border */
+      align-items: center; /* Align items vertically in filter bar */
+    }
+    .filter-bar input,
+    .filter-bar select {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      background-color: #4A5568; /* Darker input background */
+      color: var(--color-text-light);
+      font-size: 0.9em;
+      min-width: 150px;
+    }
+    .filter-bar .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--color-text-medium);
+      font-size: 0.9em;
+    }
+    .filter-bar .checkbox-container input[type="checkbox"] {
+      width: auto;
+      min-width: unset;
+      margin: 0;
+      accent-color: var(--color-accent-teal); /* Style checkbox itself */
+    }
+
+
+    .add-task-inline {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 15px;
+      padding: 0 5px;
+      align-items: center; /* ALIGN ITEMS VERTICALLY */
+    }
+    .add-task-inline input {
+      flex-grow: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      background-color: #4A5568; /* Darker input background */
+      color: var(--color-text-light);
+      font-size: 0.9em;
+    }
+    .add-task-inline button {
+      padding: 12px 12px; /* ADJUSTED PADDING TO MATCH H2 */
+      background-color: var(--color-button-bg);
+      color: var(--color-button-text);
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 6px var(--color-button-shadow);
+      flex-shrink: 0;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+      font-size: 0.9em; /* KEEP FONT SIZE CONSISTENT */
+    }
+    .add-task-inline button:hover {
+        background-color: var(--color-button-hover-bg);
+        box-shadow: 0 0 8px var(--color-button-shadow);
+    }
+
+    .progress-bar {
+      text-align: center;
+      padding: 8px;
+      font-size: 0.9em;
+      color: var(--color-text-medium);
+    }
+    section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 20px;
+    }
+    article {
+      flex: 1;
+      min-width: 280px;
+      padding: 15px;
+      border-radius: 12px;
+      background-color: var(--color-card-bg); /* Darker background for columns */
+      box-shadow: 0 0 8px rgba(79, 209, 197, 0.3); /* Subtle accent shadow */
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      min-height: 300px;
+    }
+
+    /* New style for drag over highlight */
+    article.drag-over {
+      box-shadow: 0 0 20px 5px var(--color-accent-blue); /* Accent blue glow on drag over */
+      transform: scale(1.01);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .column-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .column-header h2 {
+      font-size: 1.2em;
+      font-weight: 600; /* Slightly bolder */
+      text-align: center;
+      width: 100%;
+      padding: 12px; /* Base padding */
+      border-radius: 10px;
+      background-color: rgba(79, 209, 197, 0.1); /* Very subtle accent background */
+      box-shadow: 0 0 6px rgba(79, 209, 197, 0.2) inset;
+      color: var(--color-text-medium); /* Lighter text for headers */
+      min-height: 48px; /* Set a min-height for consistent sizing based on padding + font-size */
+      display: flex; /* Use flex to center text vertically */
+      align-items: center; /* Center text vertically */
+      justify-content: center; /* Center text horizontally */
+    }
+    .column-header button {
+      padding: 12px 12px; /* ADJUSTED PADDING TO MATCH H2'S VERTICAL PADDING */
+      font-size: 1em;
+      border-radius: 6px;
+      border: none;
+      background-color: var(--color-button-bg);
+      color: var(--color-button-text);
+      cursor: pointer;
+      box-shadow: 0 0 6px var(--color-button-shadow);
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+      min-width: 48px; /* Ensure button has a minimum width to look square */
+      min-height: 48px; /* Ensure button has a minimum height */
+    }
+    .column-header button:hover {
+        background-color: var(--color-button-hover-bg);
+        box-shadow: 0 0 8px var(--color-button-shadow);
+    }
+
+    .task {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      box-shadow: 0 0 6px rgba(79, 209, 197, 0.2); /* Subtle shadow for tasks */
+      border-left: 6px solid; /* This will be set by JS based on category/priority */
+      transition: transform 0.2s ease, background-image 0.5s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; /* Added box-shadow to transition */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 120px;
+      overflow: hidden;
+      color: var(--color-text-light); /* Ensure task text is light */
+      background-color: var(--color-task-base-bg); /* Default subtle low priority background */
+      animation: fadeIn 0.5s ease-out; /* Animation for new tasks */
+    }
+
+    /* Keyframe for fadeIn animation */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Keyframe for popOut (for deleting tasks) */
+    @keyframes popOut {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+    }
+
+
+    /* Explicit subtle background for each priority */
+    .task.High { background-color: var(--color-task-bg-high); }
+    .task.Medium { background-color: var(--color-task-bg-medium); }
+    .task.Low { background-color: var(--color-task-bg-low); }
+
+
+    .task:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 10px rgba(79, 209, 197, 0.5); /* Stronger glow on hover */
+    }
+    /* Styles for specific categories (border-color remains distinct) */
+    .Design        { border-color: #63B3ED; } /* Soft blue */
+    .Modification  { border-color: #F6AD55; } /* Muted orange */
+    .Cost\\ Estimation { border-color: #B794F4; } /* Soft purple */
+    .Budget        { border-color: #68D391; } /* Muted green */
+    .Maintenance   { border-color: #FC8181; } /* Soft red */
+
+    /* Overdue Task Style */
+    .task.overdue {
+        border: 2px solid var(--color-overdue-border); /* Stronger border for overdue */
+        background-color: var(--color-overdue-bg); /* Red tint background for overdue */
+        box-shadow: 0 0 10px var(--color-overdue-border); /* Glowing red shadow */
+    }
+
+    /* Styling for the new task info lines (due date, progress, timestamp) */
+    .task .task-info {
+      font-size: 0.85em;
+      color: var(--color-text-medium); /* Lighter gray for info */
+      margin-top: 5px;
+      display: flex; /* Use flexbox for buttons at the bottom */
+      flex-wrap: wrap; /* Allow buttons to wrap */
+      justify-content: space-between; /* Space out info and buttons */
+      align-items: flex-end; /* Align buttons to the bottom */
+      padding-top: 5px; /* Padding above info */
+      border-top: 1px solid rgba(255,255,255,0.1); /* Subtle separator */
+    }
+    .task .task-info > span {
+      display: block; /* Each info item on its own line */
+      width: 100%; /* Take full width */
+      margin-bottom: 3px; /* Space between info lines */
+    }
+    .task .task-progress-text {
+        font-weight: bold;
+        color: var(--color-text-light); /* Progress text is also light */
+        margin-top: 5px;
+    }
+    .task .task-meta-details { /* For assigned to, estimated cost */
+      font-size: 0.8em;
+      color: var(--color-text-medium);
+      margin-top: 2px;
+    }
+    .task .task-info button {
+        padding: 6px 10px; /* Small padding for inner buttons */
+        background-color: var(--color-button-bg);
+        color: var(--color-button-text);
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 0 4px var(--color-button-shadow);
+        font-size: 0.8em;
+        margin-top: 5px; /* Space above buttons */
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .task .task-info button:hover {
+        background-color: var(--color-button-hover-bg);
+        box-shadow: 0 0 6px var(--color-button-shadow);
+    }
+    .task .task-info button + button {
+        margin-left: 8px; /* Space between buttons */
+    }
+
+
+    .modal {
+      position: fixed;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--color-card-bg); /* Dark background for modal */
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(79, 209, 197, 0.5);
+      z-index: 1000;
+      display: none; /* Controlled by JS */
+      width: 320px;
+      border: 1px solid var(--color-accent-teal);
+      max-height: 80vh;
+      overflow-y: auto;
+      color: var(--color-text-light); /* Ensure modal text is light */
+    }
+
+    /* Modal animation classes */
+    .modal.show {
+        display: block;
+        animation: modalFadeIn 0.3s ease-out forwards;
+    }
+
+    .modal.hide {
+        animation: modalFadeOut 0.3s ease-in forwards;
+    }
+
+    /* Keyframes for modal animations */
+    @keyframes modalFadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px) scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+        }
+    }
+
+    @keyframes modalFadeOut {
+        from {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+            pointer-events: none; /* Disable interaction after fade out */
+        }
+        to {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px) scale(0.9);
+        }
+    }
+
+
+    .modal label {
+        display: block;
+        margin-top: 10px;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+        color: var(--color-text-medium);
+    }
+    .modal input[type="date"] {
+      color-scheme: dark;
+    }
+    .modal input,
+    .modal textarea,
+    .modal select {
+      margin: 0;
+      padding: 8px;
+      width: 100%;
+      border-radius: 6px;
+      border: none;
+      background-color: #4A5568; /* Darker input background */
+      color: var(--color-text-light);
+    }
+    .modal button {
+      padding: 8px 12px;
+      background-color: var(--color-button-bg);
+      color: var(--color-button-text);
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 6px var(--color-button-shadow);
+      margin-top: 15px;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .modal button:hover {
+        background-color: var(--color-button-hover-bg);
+        box-shadow: 0 0 8px var(--color-button-shadow);
+    }
+
+    #modalBackdrop {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7); /* Darker, more opaque backdrop */
+      z-index: 900;
+      display: none;
+      transition: opacity 0.3s ease; /* Smooth backdrop fade */
+    }
+
+    /* Backdrop animation classes */
+    #modalBackdrop.show {
+        display: block;
+        opacity: 1;
+    }
+    #modalBackdrop.hide {
+        opacity: 0;
+    }
+
+    /* New styles for Charts and Health Status */
+    .dashboard-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px; /* Reduced gap between charts */
+        padding: 10px; /* Reduced padding for the entire summary section */
+        justify-content: center; /* Center items within this section */
+        background-color: var(--color-secondary-bg);
+        margin: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 15px rgba(79, 209, 197, 0.3);
+    }
+
+    .chart-container {
+        background-color: var(--color-card-bg);
+        padding: 10px; /* Reduced padding inside chart container */
+        border-radius: 10px;
+        box-shadow: 0 0 8px rgba(79, 209, 197, 0.3);
+        flex: 1 1 280px; /* Adjusted flex-basis to allow smaller width */
+        max-width: 350px; /* Reduced max-width for charts */
+        min-height: 280px; /* Adjusted min-height */
+        max-height: 320px; /* Adjusted max-height */
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Center chart titles and content */
+    }
+
+    .chart-container canvas {
+        max-height: 100%; /* Make canvas respect parent's max-height */
+        width: 100% !important; /* IMPORTANT: Override Chart.js inline styles if they are fighting */
+        height: auto !important; /* IMPORTANT: Override Chart.js inline styles if they are fighting */
+    }
+
+
+    .chart-container h3, .health-status h3 {
+        color: var(--color-accent-teal);
+        margin-top: 0;
+        margin-bottom: 10px; /* Reduced margin below titles */
+        font-size: 1.1em;
+        text-align: center; /* Center chart titles */
+    }
+
+    /* Adjusted styles for the Health Status (Overdue Tasks) box */
+    .health-status {
+        background-color: var(--color-secondary-bg); /* Changed to secondary-bg for less prominence */
+        border: 1px solid var(--color-overdue-border); /* Kept red border for warning */
+        padding: 8px 12px; /* Smaller padding */
+        border-radius: 10px;
+        box-shadow: 0 0 8px rgba(79, 209, 197, 0.3);
+        flex: 0 1 auto; /* Don't grow, can shrink, basis auto */
+        min-width: 180px; /* Smaller minimum width */
+        max-width: 280px; /* Smaller maximum width */
+        height: auto; /* Allow height to adjust */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0; /* Remove top margin if inherited */
+        margin-bottom: 0; /* Remove bottom margin if inherited */
+    }
+
+    .health-status h3 {
+        color: var(--color-overdue-border); /* Make title red too */
+        font-size: 1em; /* Smaller title */
+        margin: 0; /* Remove margins to make it tighter */
+        padding-bottom: 5px; /* Small padding below title */
+    }
+
+    .health-status p {
+        font-size: 1.2em; /* Slightly smaller font for count */
+        font-weight: bold;
+        color: var(--color-overdue-border); /* Red for overdue */
+        text-align: center;
+        margin: 0; /* Remove margins to make it tighter */
+    }
+
+    footer {
+      background-color: var(--color-secondary-bg);
+      padding: 15px;
+      text-align: center;
+      color: var(--color-text-medium);
+      margin-top: 20px; /* Space from content */
+    }
+    .export-button {
+      font-size: 0.8em;
+      padding: 6px 10px;
+      background-color: var(--color-accent-teal); /* Kept accent color for export */
+      color: var(--color-primary-bg);
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(79, 209, 197, 0.5);
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .export-button:hover {
+        background-color: var(--color-accent-blue);
+        box-shadow: 0 0 8px rgba(99, 179, 237, 0.7);
+    }
+    @media (max-width: 900px) {
+      section { flex-direction: column; }
+      .filter-bar { flex-direction: column; }
+      .dashboard-summary { flex-direction: column; } /* Stack charts vertically on small screens */
+      .chart-container, .health-status { max-width: 100%; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏗️ Civil Works Dashboard</h1>
+  <p>Precision. Aesthetics. Control.</p>
+</header>
+
+<div class="filter-bar">
+  <input type="text" id="searchInput" placeholder="🔍 Search tasks..." onkeyup="renderTasks()" />
+<select id="categoryFilter" onchange="renderTasks()">
+  <option value="">Filter by Category</option>
+  <option value="Design">Design</option>
+  <option value="Modification">Modification</option>
+  <option value="Cost Estimation">Cost Estimation</option>
+  <option value="Budget">Budget</option>
+  <option value="Maintenance">Maintenance</option>
+</select>
+
+<select id="priorityFilter" onchange="renderTasks()">
+  <option value="">Filter by Priority</option>
+  <option value="Low">🟢 Low</option>
+  <option value="Medium">🟡 Medium</option>
+  <option value="High">🔴 High</option>
+</select>
+
+<select id="assignedToFilter" onchange="renderTasks()">
+  <option value="">Filter by Assignee</option>
+  </select>
+
+<div class="checkbox-container">
+  <input type="checkbox" id="showArchivedCheckbox" onchange="renderTasks()">
+  <label for="showArchivedCheckbox">Show Archived</label>
+</div>
+
+</div>
+
+<div class="progress-bar">
+  <span id="progressMessage">🧮 Progress tracking...</span>
+</div>
+
+<section class="dashboard-summary">
+    <div class="chart-container">
+        <h3>Task Status</h3>
+        <canvas id="taskStatusChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Task Priority</h3>
+        <canvas id="taskPriorityChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Task Category</h3>
+        <canvas id="taskCategoryChart"></canvas>
+    </div>
+    <div class="health-status">
+        <h3>Overdue Tasks</h3>
+        <p id="overdueCount">0</p>
+    </div>
+</section>
+
+
+<section>
+  <article ondrop="drop(event, 'Pending')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+    <div class="column-header">
+      <h2>⏳ Pending</h2>
+      <button onclick="openModal('Pending')">➕</button>
+    </div>
+    <div class="add-task-inline">
+        <input type="text" id="pendingQuickAdd" placeholder="Add new pending task..." onkeydown="if(event.key === 'Enter') addInlineTask('Pending', 'pendingQuickAdd')" />
+        <button onclick="addInlineTask('Pending', 'pendingQuickAdd')">Add</button>
+    </div>
+    <div id="Pending"></div>
+  </article>
+
+  <article ondrop="drop(event, 'In Progress')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+    <div class="column-header">
+      <h2>🚧 In Progress</h2>
+      <button onclick="openModal('In Progress')">➕</button>
+    </div>
+    <div class="add-task-inline">
+        <input type="text" id="inProgressQuickAdd" placeholder="Add new in-progress task..." onkeydown="if(event.key === 'Enter') addInlineTask('In Progress', 'inProgressQuickAdd')" />
+        <button onclick="addInlineTask('In Progress', 'inProgressQuickAdd')">Add</button>
+    </div>
+    <div id="In Progress"></div>
+  </article>
+
+  <article ondrop="drop(event, 'Done')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+    <div class="column-header">
+      <h2>✅ Done</h2>
+      <button onclick="openModal('Done')">➕</button>
+    </div>
+    <div class="add-task-inline">
+        <input type="text" id="doneQuickAdd" placeholder="Add new done task..." onkeydown="if(event.key === 'Enter') addInlineTask('Done', 'doneQuickAdd')" />
+        <button onclick="addInlineTask('Done', 'doneQuickAdd')">Add</button>
+    </div>
+    <div id="Done"></div>
+  </article>
+</section>
+
+<div id="modalBackdrop" onclick="closeModal()"></div>
+<div id="taskModal" class="modal">
+  <h3 id="modalTitleText">Create Task</h3>
+
+  <label for="modalTitle">Title:</label>
+  <input id="modalTitle" type="text" placeholder="Title" required />
+
+  <label for="modalDesc">Description:</label>
+  <textarea id="modalDesc" rows="3" placeholder="Description" required></textarea>
+
+  <label for="modalCategory">Category:</label>
+  <select id="modalCategory" required>
+    <option value="">Select Category</option>
+    <option value="Design">Design</option>
+    <option value="Modification">Modification</option>
+    <option value="Cost Estimation">Cost Estimation</option>
+    <option value="Budget">Budget</option>
+    <option value="Maintenance">Maintenance</option>
+  </select>
+
+  <label for="modalPriority">Priority:</label>
+  <select id="modalPriority" required>
+    <option value="">Select Priority</option>
+    <option value="Low">🟢 Low</option>
+    <option value="Medium">🟡 Medium</option>
+    <option value="High">🔴 High</option>
+  </select>
+
+  <label for="modalDueDate">Due Date:</label>
+  <input type="date" id="modalDueDate" />
+
+  <label for="modalProgress">Progress (%):</label>
+  <input type="number" id="modalProgress" min="0" max="100" placeholder="0-100" value="0" />
+
+  <label for="modalAssignedTo">Assigned To:</label>
+  <input type="text" id="modalAssignedTo" placeholder="e.g., John Doe" />
+
+  <label for="modalEstimatedCost">Estimated Cost ($):</label>
+  <input type="number" id="modalEstimatedCost" min="0" placeholder="e.g., 500" />
+
+
+  <button id="modalActionButton" onclick="saveTask()">Create Task</button>
+</div>
+
+<footer>
+  <p>Designed for Hafiz 🧱 Civil Engineer Extraordinaire</p>
+  <button class="export-button" onclick="exportToExcel()">📤 Export to Excel</button>
+</footer>
+</body>
+<script>
+// Paste your Google Apps Script Web App URL here
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJERM2_AUxB1XHSUf93fogD25zS0Cnq3B4Cr4QtHvGgcaJDN5dURT9vZ9QPhWTgcwx/exec";
+let currentStatus = null;
+let editingIndex = null;
+let tasks = []; // Initialize as empty, as data will be fetched
+
+// Chart instances
+let taskStatusChart;
+let taskPriorityChart;
+let taskCategoryChart;
+
+
+// Populate Assigned To filter dropdown
+function populateAssignedToFilter() {
+  const assignedToFilter = document.getElementById('assignedToFilter');
+  assignedToFilter.innerHTML = '<option value="">Filter by Assignee</option>'; // Reset
+  const assignees = new Set();
+  tasks.forEach(task => {
+    if (task.AssignedTo) { // Use task.AssignedTo
+      assignees.add(task.AssignedTo); // Use task.AssignedTo
+    }
+  });
+  Array.from(assignees).sort().forEach(assignee => {
+    const option = document.createElement('option');
+    option.value = assignee;
+    option.textContent = assignee;
+    assignedToFilter.appendChild(option);
+  });
+}
+
+// Function to save/update/delete tasks to the Google Sheet
+async function saveTasksToSheet(action, taskData, originalIndex = null) {
+    const payload = {
+        action: action, // "create" or "update" or "delete"
+        task: taskData,
+        rowIndex: originalIndex // For update/delete, pass the row index
+    };
+
+    try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8', // Apps Script expects text/plain for doPost
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            console.log(result.message);
+            // Instead of re-fetching ALL tasks, update the local 'tasks' array directly
+            if (action === "create") {
+                // Add the new task returned by the script (which includes its OriginalIndex)
+                tasks.push(result.task);
+                // Sort tasks by Timestamp in descending order (newest first)
+                tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+            } else if (action === "update") {
+                // Find the task in the local array by its OriginalIndex and update it
+                const updatedTaskIndex = tasks.findIndex(t => t.OriginalIndex === result.task.OriginalIndex);
+                if (updatedTaskIndex !== -1) {
+                    tasks[updatedTaskIndex] = result.task; // Replace with the updated task from the script
+                    // Sort tasks by Timestamp in descending order (newest first)
+                    tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+                }
+            } else if (action === "delete") {
+                // Remove the task from the local array by its OriginalIndex
+                tasks = tasks.filter(t => t.OriginalIndex !== result.deletedRowIndex); // Filter out the deleted task
+            }
+            renderTasks(); // Re-render the UI using the updated local 'tasks' array
+        } else {
+            console.error("Error saving task:", result.message);
+            alert("Failed to save task: " + result.message);
+        }
+    } catch (error) {
+        console.error("Network or script error:", error);
+        alert("An error occurred while communicating with the server.");
+    }
+}
+
+// Function to fetch all tasks from the Google Sheet
+async function fetchTasksFromSheet() {
+    try {
+        // For GET requests, you might need to append a parameter to prevent caching,
+        // or Apps Script will serve cached content. A simple timestamp works.
+        const response = await fetch(APPS_SCRIPT_URL + "?timestamp=" + new Date().getTime());
+        const data = await response.json();
+
+        tasks = data.map(task => ({
+            ...task,
+            // Ensure OriginalIndex is a number for consistent comparisons
+            OriginalIndex: parseInt(task.OriginalIndex)
+        }));
+
+        // Sort tasks by Timestamp in descending order (newest first)
+        tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+
+        console.log("Tasks fetched:", tasks);
+        populateAssignedToFilter(); // Re-populate filter after fetching
+        renderTasks(); // Render tasks after fetching
+    } catch (error) {
+        console.error("Error fetching tasks:", error);
+        alert("Failed to load tasks from the server. Check console for details.");
+    }
+}
+
+
+function openModal(status, displayIndex = null) { // Renamed parameter
+  currentStatus = status;
+  editingIndex = displayIndex; // Store the display index
+
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const taskModal = document.getElementById("taskModal");
+
+  // Ensure pointer events are enabled when showing the modal
+  taskModal.style.pointerEvents = 'auto'; // [Fix] Re-enable pointer events when modal is opened
+
+  modalBackdrop.classList.remove('hide');
+  taskModal.classList.remove('hide');
+
+  modalBackdrop.style.display = 'block';
+  taskModal.style.display = 'block';
+
+  modalBackdrop.classList.add('show');
+  taskModal.classList.add('show');
+
+
+  const modalTitleText = document.getElementById("modalTitleText");
+  const modalActionButton = document.getElementById("modalActionButton");
+
+  if (editingIndex !== null) {
+    const task = tasks[editingIndex]; // Use displayIndex to get the task
+    document.getElementById("modalTitle").value = task.Title; // Match sheet header
+    document.getElementById("modalDesc").value = task.Description; // Match sheet header
+    document.getElementById("modalCategory").value = task.Category; // Match sheet header
+    document.getElementById("modalPriority").value = task.Priority; // Match sheet header
+    document.getElementById("modalDueDate").value = task.DueDate || ""; // Match sheet header
+    document.getElementById("modalProgress").value = task.Progress !== undefined ? task.Progress : 0; // Match sheet header
+    document.getElementById("modalAssignedTo").value = task.AssignedTo || ""; // Match sheet header
+    document.getElementById("modalEstimatedCost").value = task.EstimatedCost !== undefined ? task.EstimatedCost : ""; // Match sheet header
+
+    modalTitleText.textContent = "Edit Task";
+    modalActionButton.textContent = "Update Task";
+  } else {
+    // Clear fields for new task
+    document.getElementById("modalTitle").value = "";
+    document.getElementById("modalDesc").value = "";
+    document.getElementById("modalCategory").value = "";
+    document.getElementById("modalPriority").value = "";
+    document.getElementById("modalDueDate").value = "";
+    document.getElementById("modalProgress").value = 0;
+    document.getElementById("modalAssignedTo").value = ""; // New
+    document.getElementById("modalEstimatedCost").value = ""; // New
+    modalTitleText.textContent = "Create Task";
+    modalActionButton.textContent = "Create Task";
+  }
+}
+
+function closeModal() {
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const taskModal = document.getElementById("taskModal");
+
+  taskModal.style.pointerEvents = 'none'; // [Fix] Immediately disable pointer events when closing
+
+  modalBackdrop.classList.remove('show');
+  modalBackdrop.classList.add('hide');
+  taskModal.classList.remove('show');
+  taskModal.classList.add('hide');
+
+  let backdropAnimationEnded = false;
+  let modalAnimationEnded = false;
+
+  const checkAndHide = () => {
+    if (backdropAnimationEnded && modalAnimationEnded) {
+      taskModal.style.display = 'none';
+      modalBackdrop.style.display = 'none';
+      // No need to re-enable pointer-events here, as it's done when modal is opened
+
+      document.getElementById("modalTitle").value = "";
+      document.getElementById("modalDesc").value = "";
+      document.getElementById("modalCategory").value = "";
+      document.getElementById("modalPriority").value = "";
+      document.getElementById("modalDueDate").value = "";
+      document.getElementById("modalProgress").value = 0;
+      document.getElementById("modalAssignedTo").value = ""; // New
+      document.getElementById("modalEstimatedCost").value = ""; // New
+      editingIndex = null;
+      currentStatus = null;
+    }
+  };
+
+  const backdropHandler = () => {
+    backdropAnimationEnded = true;
+    modalBackdrop.removeEventListener('animationend', backdropHandler);
+    checkAndHide();
+  };
+
+  const modalHandler = () => {
+    modalAnimationEnded = true;
+    taskModal.removeEventListener('animationend', modalHandler);
+    checkAndHide();
+  };
+
+  modalBackdrop.addEventListener('animationend', backdropHandler, { once: true });
+  taskModal.addEventListener('animationend', modalHandler, { once: true });
+
+  setTimeout(() => {
+    if (!backdropAnimationEnded) {
+      modalBackdrop.style.display = 'none';
+    }
+    if (!modalAnimationEnded) {
+      taskModal.style.display = 'none';
+    }
+    if (!backdropAnimationEnded || !modalAnimationEnded) {
+        document.getElementById("modalTitle").value = "";
+        document.getElementById("modalDesc").value = "";
+        document.getElementById("modalCategory").value = "";
+        document.getElementById("modalPriority").value = "";
+        document.getElementById("modalDueDate").value = "";
+        document.getElementById("modalProgress").value = 0;
+        document.getElementById("modalAssignedTo").value = ""; // New
+        document.getElementById("modalEstimatedCost").value = ""; // New
+        editingIndex = null;
+        currentStatus = null;
+    }
+  }, 400);
+}
+
+
+async function saveTask() {
+  const title = document.getElementById("modalTitle").value.trim();
+  const description = document.getElementById("modalDesc").value.trim();
+  const category = document.getElementById("modalCategory").value.trim();
+  const priority = document.getElementById("modalPriority").value.trim();
+  const dueDate = document.getElementById("modalDueDate").value;
+  let progress = parseInt(document.getElementById("modalProgress").value, 10);
+  const assignedTo = document.getElementById("modalAssignedTo").value.trim();
+  let estimatedCost = parseFloat(document.getElementById("modalEstimatedCost").value);
+
+  if (currentStatus === null) {
+    console.error("Error: currentStatus is null. Modal might not have been opened correctly.");
+    alert("Error: Task status could not be determined. Please close and re-open the task dialog.");
+    return;
+  }
+
+  if (!title || !description || !category || !priority) {
+    alert("Please fill out all required fields (Title, Description, Category, Priority).");
+    return;
+  }
+
+  if (isNaN(progress) || progress < 0 || progress > 100) {
+      alert("Progress must be a number between 0 and 100.");
+      return;
+  }
+
+  if (isNaN(estimatedCost) || estimatedCost < 0) {
+    estimatedCost = 0;
+  }
+
+  // Build task object, but DO NOT set Timestamp or OriginalIndex yet for new tasks
+  const task = {
+    Title: title,
+    Description: description,
+    Category: category,
+    Priority: priority,
+    Status: currentStatus,
+    DueDate: dueDate,
+    Progress: progress,
+    AssignedTo: assignedTo,
+    EstimatedCost: estimatedCost,
+    IsArchived: editingIndex !== null ? (tasks[editingIndex].IsArchived || false) : false
+  };
+
+  if (editingIndex !== null) {
+    // For existing tasks, we need to send the original timestamp and OriginalIndex
+    const taskToUpdate = tasks[editingIndex];
+    if (taskToUpdate && taskToUpdate.OriginalIndex !== undefined) {
+        task.Timestamp = taskToUpdate.Timestamp; // Keep original timestamp for updates
+        await saveTasksToSheet("update", task, taskToUpdate.OriginalIndex);
+    } else {
+        alert("Error: Could not find original task data for update.");
+    }
+  } else {
+    // For new tasks, Timestamp and OriginalIndex will be set by the Apps Script
+    await saveTasksToSheet("create", task);
+  }
+  closeModal();
+}
+
+// Add task directly from inline input
+async function addInlineTask(status, inputId) {
+  const inputField = document.getElementById(inputId);
+  const title = inputField.value.trim();
+
+  if (!title) {
+    alert("Please enter a task title.");
+    return;
+  }
+
+  const task = {
+    Title: title,
+    Description: "",
+    Category: "Uncategorized", // Default to Uncategorized for quick add
+    Priority: "Low", // Default to low priority for quick add
+    Status: status,
+    DueDate: "",
+    Progress: 0,
+    AssignedTo: "",
+    EstimatedCost: 0,
+    IsArchived: false
+  };
+
+  await saveTasksToSheet("create", task);
+  inputField.value = "";
+}
+
+
+function editTask(displayIndex) { // Renamed parameter
+  openModal(tasks[displayIndex].Status, displayIndex); // Pass the status and display index
+}
+
+// Renamed deleteTask to removeTask for clarity (hard delete)
+async function removeTask(displayIndex) { // Renamed to displayIndex to avoid confusion with sheet index
+  if (confirm("Are you sure you want to permanently delete this task? This action cannot be undone.")) {
+    const taskToDelete = tasks[displayIndex]; // Get the task from the currently displayed/filtered tasks array
+    if (taskToDelete && taskToDelete.OriginalIndex !== undefined) {
+        const taskElement = document.getElementById(`task-${displayIndex}`); // Use displayIndex here
+        if (taskElement) {
+          taskElement.style.animation = 'popOut 0.3s ease-in forwards';
+          taskElement.addEventListener('animationend', async () => {
+            await saveTasksToSheet("delete", {}, taskToDelete.OriginalIndex); // Send delete action with sheet row index
+            // No need to splice 'tasks' array here, fetchTasksFromSheet will refresh it
+          }, { once: true });
+        } else {
+          await saveTasksToSheet("delete", {}, taskToDelete.OriginalIndex);
+        }
+    } else {
+        alert("Error: Could not find original task data for deletion.");
+    }
+  }
+}
+
+// Function to toggle archive status
+async function toggleArchiveTask(displayIndex) {
+  const task = tasks[displayIndex];
+  const newArchiveStatus = !task.IsArchived; // Use IsArchived
+  const action = newArchiveStatus ? "archive" : "unarchive";
+
+  if (confirm(`Are you sure you want to ${action} this task?`)) {
+    const updatedTask = { ...task, IsArchived: newArchiveStatus }; // Use IsArchived
+    // If unarchived and in 'Done' status, ensure progress is 100%
+    if (!newArchiveStatus && updatedTask.Status === 'Done') { // Use Status
+        updatedTask.Progress = 100; // Use Progress
+    }
+    await saveTasksToSheet("update", updatedTask, task.OriginalIndex);
+  }
+}
+
+
+function getPriorityIcon(priority) {
+  return priority === "High" ? "🔴"
+       : priority === "Medium" ? "🟡"
+       : priority === "Low" ? "🟢"
+       : "";
+}
+
+function formatTimestamp(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+function getProgressColor(priority) {
+  switch (priority) {
+    case 'High':
+      return 'var(--color-progress-high)';
+    case 'Medium':
+      return 'var(--color-progress-medium)';
+    case 'Low':
+    default:
+      return 'var(--color-progress-low)';
+  }
+}
+
+function getSubtleTaskBackgroundColor(priority) {
+  switch (priority) {
+    case 'High':
+      return 'rgba(176, 58, 46, 0.15)';
+    case 'Medium':
+      return 'rgba(212, 172, 13, 0.15)';
+    case 'Low':
+    default:
+      return 'rgba(39, 174, 174, 0.15)';
+  }
+}
+
+function isOverdue(dueDate, status) {
+    if (!dueDate || status === 'Done') return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to start of day
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0); // Normalize due date to start of day
+    return due < today;
+}
+
+
+function renderTasks() {
+  const search = document.getElementById("searchInput").value.trim().toLowerCase();
+  const categoryFilterValue = document.getElementById("categoryFilter").value.trim();
+  const priorityFilterValue = document.getElementById("priorityFilter").value.trim();
+  const assignedToFilterValue = document.getElementById("assignedToFilter").value.trim();
+  const showArchived = document.getElementById("showArchivedCheckbox").checked;
+
+  ["Pending", "In Progress", "Done"].forEach(status => {
+    document.getElementById(status).innerHTML = "";
+    document.getElementById(status).closest('article').classList.remove('drag-over');
+  });
+
+  const displayedTasks = []; // This array will hold tasks to be displayed, with their original index in the global `tasks` array
+
+  tasks.forEach((task, globalIndex) => { // Use globalIndex for iteration
+    // Determine if the task should be rendered based on archive status and showArchived checkbox
+    const shouldRender = (!task.IsArchived || showArchived); // Use task.IsArchived
+
+    if (!shouldRender) {
+        return;
+    }
+
+    const taskTitle = task.Title || ""; // Use task.Title
+    const taskDescription = task.Description || ""; // Use task.Description
+    const taskCategory = task.Category || ""; // Use task.Category
+    const taskPriority = task.Priority || ""; // Use task.Priority
+    const taskAssignedTo = task.AssignedTo || ""; // Use task.AssignedTo
+    const taskStatus = task.Status || ""; // Use task.Status
+
+    const matchesSearch = search === "" ||
+      taskTitle.toLowerCase().includes(search) ||
+      taskDescription.toLowerCase().includes(search);
+
+    const matchesCategory = categoryFilterValue === "" || taskCategory === categoryFilterValue;
+    const matchesPriority = priorityFilterValue === "" || taskPriority === priorityFilterValue;
+    const matchesAssignedTo = assignedToFilterValue === "" || taskAssignedTo === assignedToFilterValue;
+
+    if (matchesSearch && matchesCategory && matchesPriority && matchesAssignedTo) {
+      displayedTasks.push({task, displayIndex: globalIndex}); // Store the global index for actions
+    }
+  });
+
+
+  displayedTasks.forEach(({task, displayIndex}) => { // Iterate over displayedTasks with displayIndex
+    const taskTitle = task.Title || "Untitled";
+    const taskDescription = task.Description || "No description.";
+    const taskCategory = task.Category || "Uncategorized";
+    const taskPriority = task.Priority || "Low";
+    const taskDueDate = task.DueDate ? `📅 Due: ${task.DueDate}` : '';
+    const taskProgress = task.Progress !== undefined ? task.Progress : 0;
+    const taskTimestamp = task.Timestamp ? `Created: ${formatTimestamp(task.Timestamp)}` : '';
+    const taskAssignedTo = task.AssignedTo ? `🧑‍💻 Assigned: ${task.AssignedTo}` : '';
+    const taskEstimatedCost = task.EstimatedCost !== undefined && task.EstimatedCost > 0 ? `💰 Est. Cost: $${task.EstimatedCost.toLocaleString()}` : '';
+
+    const el = document.createElement("div");
+    el.id = `task-${displayIndex}`; // Use displayIndex for element ID
+    const categoryClass = (task.Category || "Uncategorized").replace(/\s/g, '\\ ');
+    const priorityClass = (task.Priority || "Low");
+
+    el.className = `task ${categoryClass} ${priorityClass}`;
+    el.draggable = true;
+    el.ondragstart = e => dragStart(e, displayIndex); // Pass displayIndex
+
+    const subtleTaskBg = getSubtleTaskBackgroundColor(taskPriority);
+    let progressFillColor = getProgressColor(taskPriority);
+
+    el.style.backgroundColor = subtleTaskBg;
+
+    if (taskProgress === 0) {
+      el.style.backgroundImage = 'none';
+    } else if (taskProgress === 100) {
+       el.style.backgroundColor = progressFillColor;
+       el.style.backgroundImage = 'none';
+    } else {
+      el.style.backgroundImage = `linear-gradient(to right, ${progressFillColor} ${taskProgress}%, ${subtleTaskBg} ${taskProgress}%)`;
+    }
+
+    const progressText = (task.Status === "Done" && taskProgress === 100) ? `✅ Done!` : `📊 Progress: ${taskProgress}%`;
+
+    // Apply overdue style
+    if (isOverdue(task.DueDate, task.Status)) {
+        el.classList.add('overdue');
+    } else {
+        el.classList.remove('overdue');
+    }
+
+    el.innerHTML = `
+      <div>
+          <strong>${taskTitle}</strong><br>
+          <em>${taskCategory}</em><br>
+          <span>${getPriorityIcon(taskPriority)} ${taskPriority}</span>
+          <p>${taskDescription}</p>
+      </div>
+      <div class="task-meta-details">
+          ${taskAssignedTo ? `<span>${taskAssignedTo}</span>` : ''}
+          ${taskEstimatedCost ? `<span>${taskEstimatedCost}</span>` : ''}
+      </div>
+      <div class="task-info">
+          <span class="task-progress-text">${progressText}</span>
+          ${taskDueDate ? `<span>${taskDueDate}</span>` : ''}
+          ${taskTimestamp ? `<span>${taskTimestamp}</span>` : ''}
+          <button onclick="editTask(${displayIndex})">📝 Edit</button>
+          <button onclick="toggleArchiveTask(${displayIndex})" title="Toggle Archive Status">🗄️ ${task.IsArchived ? 'Unarchive' : 'Archive'}</button>
+          <button onclick="removeTask(${displayIndex})" title="Permanently Delete Task">🗑️ Delete</button>
+      </div>
+    `;
+
+    const targetColumn = document.getElementById(task.Status);
+    if (targetColumn) {
+        targetColumn.appendChild(el);
+    }
+  });
+
+
+  const nonArchivedTasks = tasks.filter(task => !task.IsArchived);
+  const totalActualTasks = nonArchivedTasks.length;
+  const completedActualTasks = nonArchivedTasks.filter(task => task.Status === "Done").length;
+
+  document.getElementById("progressMessage").textContent =
+    totalActualTasks > 0
+      ? `✅ ${completedActualTasks} of ${totalActualTasks} tasks completed`
+      : "📋 No active tasks yet — add one to get started";
+
+  updateTaskCharts();
+  updateOverdueCount();
+}
+
+
+function dragStart(event, displayIndex) { // Renamed parameter
+  event.dataTransfer.setData("text", displayIndex);
+}
+
+function allowDrop(event) {
+  event.preventDefault();
+  if (event.target.closest('article')) {
+    event.target.closest('article').classList.add('drag-over');
+  }
+}
+
+function dragLeave(event) {
+  if (event.target.closest('article')) {
+    event.target.closest('article').classList.remove('drag-over');
+  }
+}
+
+async function drop(event, newStatus) {
+  event.preventDefault();
+  const displayIndex = event.dataTransfer.getData("text"); // This is the index in the filtered/displayed tasks array
+
+  document.querySelectorAll('article').forEach(article => {
+    article.classList.remove('drag-over');
+  });
+
+  const taskToUpdate = tasks[displayIndex];
+  if (taskToUpdate && taskToUpdate.OriginalIndex !== undefined) {
+    const updatedTask = { ...taskToUpdate, Status: newStatus };
+    // If dropped into 'Done', set progress to 100% and unarchive if it was archived
+    if (newStatus === 'Done') {
+        updatedTask.Progress = 100;
+        updatedTask.IsArchived = false; // Unarchive if moved to Done
+    } else {
+        updatedTask.Progress = Math.min(updatedTask.Progress, 99); // Set to max 99 if moved out of done
+        updatedTask.IsArchived = false; // Unarchive if moved out of Done
+    }
+    await saveTasksToSheet("update", updatedTask, taskToUpdate.OriginalIndex);
+  }
+}
+
+function exportToExcel() {
+  if (tasks.length === 0) {
+    alert("No tasks to export!");
+    return;
+  }
+
+  // Create a copy of tasks to manipulate for export, without altering original data
+  const exportTasks = tasks.map(task => ({
+      Title: task.Title,
+      Description: task.Description,
+      Category: task.Category,
+      Priority: task.Priority,
+      Status: task.Status,
+      DueDate: task.DueDate,
+      Progress: task.Progress,
+      AssignedTo: task.AssignedTo,
+      EstimatedCost: task.EstimatedCost,
+      CreatedTimestamp: formatTimestamp(task.Timestamp),
+      IsArchived: task.IsArchived ? 'Yes' : 'No' // Export as readable string
+  }));
+
+
+  const ws = XLSX.utils.json_to_sheet(exportTasks);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Tasks");
+  XLSX.writeFile(wb, "NeonCivilDashboard_Tasks.xlsx");
+}
+
+// *** Chart.js Functions ***
+function updateTaskCharts() {
+    const activeTasks = tasks.filter(task => !task.IsArchived); // Use IsArchived
+
+    // Data for Status Chart
+    const statusCounts = activeTasks.reduce((acc, task) => {
+        acc[task.Status] = (acc[task.Status] || 0) + 1; // Use task.Status
+        return acc;
+    }, {});
+    const statusLabels = ["Pending", "In Progress", "Done"];
+    const statusData = statusLabels.map(label => statusCounts[label] || 0);
+    const statusColors = ['#F6AD55', '#63B3ED', '#4FD1C5']; // Orange, Blue, Teal
+
+    // Data for Priority Chart
+    const priorityCounts = activeTasks.reduce((acc, task) => {
+        acc[task.Priority] = (acc[task.Priority] || 0) + 1; // Use task.Priority
+        return acc;
+    }, {});
+    const priorityLabels = ["High", "Medium", "Low"];
+    const priorityData = priorityLabels.map(label => priorityCounts[label] || 0);
+    const priorityColors = ['#E53E3E', '#ECC94B', '#4FD1C5']; // Red, Yellow, Teal
+
+    // Data for Category Chart
+    const categoryCounts = activeTasks.reduce((acc, task) => {
+        if (task.Category) { // Use task.Category
+            acc[task.Category] = (acc[task.Category] || 0) + 1; // Use task.Category
+        }
+        return acc;
+    }, {});
+    const categoryLabels = Object.keys(categoryCounts).sort();
+    const categoryData = categoryLabels.map(label => categoryCounts[label]);
+    const categoryColors = categoryLabels.map((_, i) => `hsl(${i * 60 % 360}, 70%, 50%)`); // Dynamic colors
+
+
+    // Common chart options to squeeze space
+    const commonChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    color: '#FFFFFF', // Set legend text color to explicit white for visibility
+                    padding: 8 // Reduced padding around legend items
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed !== null) {
+                            label += context.parsed;
+                        }
+                        return label;
+                    }
+                }
+            }
+        },
+        layout: {
+            padding: {
+                left: 5, // Reduced padding for the chart area itself
+                right: 5,
+                top: 5,
+                bottom: 5
+            }
+        }
+    };
+
+
+    // Initialize or Update Task Status Chart
+    const ctxStatus = document.getElementById('taskStatusChart').getContext('2d');
+    if (taskStatusChart) {
+        taskStatusChart.data.labels = statusLabels;
+        taskStatusChart.data.datasets[0].data = statusData;
+        taskStatusChart.data.datasets[0].backgroundColor = statusColors;
+        taskStatusChart.update();
+    } else {
+        taskStatusChart = new Chart(ctxStatus, {
+            type: 'pie',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusData,
+                    backgroundColor: statusColors,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: commonChartOptions // Apply common options
+        });
+    }
+
+    // Initialize or Update Task Priority Chart
+    const ctxPriority = document.getElementById('taskPriorityChart').getContext('2d');
+    if (taskPriorityChart) {
+        taskPriorityChart.data.labels = priorityLabels;
+        taskPriorityChart.data.datasets[0].data = priorityData;
+        taskPriorityChart.data.datasets[0].backgroundColor = priorityColors;
+        taskPriorityChart.update();
+    } else {
+        taskPriorityChart = new Chart(ctxPriority, {
+            type: 'pie',
+            data: {
+                labels: priorityLabels,
+                datasets: [{
+                    data: priorityData,
+                    backgroundColor: priorityColors,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: commonChartOptions // Apply common options
+        });
+    }
+
+    // Initialize or Update Task Category Chart
+    const ctxCategory = document.getElementById('taskCategoryChart').getContext('2d');
+    if (taskCategoryChart) {
+        taskCategoryChart.data.labels = categoryLabels;
+        taskCategoryChart.data.datasets[0].data = categoryData;
+        taskCategoryChart.data.datasets[0].backgroundColor = categoryColors;
+        taskCategoryChart.update();
+    } else {
+        taskCategoryChart = new Chart(ctxCategory, {
+            type: 'pie',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryData,
+                    backgroundColor: categoryColors,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: commonChartOptions // Apply common options
+        });
+    }
+}
+
+// Function to update the overdue task count
+function updateOverdueCount() {
+    const overdueTasks = tasks.filter(task => !task.IsArchived && isOverdue(task.DueDate, task.Status)); // Use IsArchived, DueDate, Status
+    document.getElementById('overdueCount').textContent = overdueTasks.length;
+}
+
+
+// Initial calls when the script loads
+fetchTasksFromSheet(); // Fetch tasks from Google Sheet on load
+</script>
+</html>
