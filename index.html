@@ -707,51 +707,47 @@ function populateAssignedToFilter() {
 }
 
 // Function to save/update/delete tasks to the Google Sheet
-async function saveTasksToSheet(action, taskData, originalIndex = null) {
-    const payload = {
-        action: action, // "create" or "update" or "delete"
-        task: taskData,
-        rowIndex: originalIndex // For update/delete, pass the row index
-    };
-
+async function saveTasksToSheet(action, task = null, rowIndex = null) {
     try {
+        const payload = {
+            action: action,
+            task: task,
+            rowIndex: rowIndex
+        };
+
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'cors', // Crucial for Apps Script
             headers: {
-                'Content-Type': 'text/plain;charset=utf-8', // Apps Script expects text/plain for doPost
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload),
         });
 
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+        }
+
         const result = await response.json();
         if (result.success) {
             console.log(result.message);
-            // Instead of re-fetching ALL tasks, update the local 'tasks' array directly
-            if (action === "create") {
-                // Add the new task returned by the script (which includes its OriginalIndex)
-                tasks.push(result.task);
-                // Sort tasks by Timestamp in descending order (newest first)
-                tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-            } else if (action === "update") {
-                // Find the task in the local array by its OriginalIndex and update it
-                const updatedTaskIndex = tasks.findIndex(t => t.OriginalIndex === result.task.OriginalIndex);
-                if (updatedTaskIndex !== -1) {
-                    tasks[updatedTaskIndex] = result.task; // Replace with the updated task from the script
-                    // Sort tasks by Timestamp in descending order (newest first)
-                    tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-                }
-            } else if (action === "delete") {
-                // Remove the task from the local array by its OriginalIndex
-                tasks = tasks.filter(t => t.OriginalIndex !== result.deletedRowIndex); // Filter out the deleted task
-            }
-            renderTasks(); // Re-render the UI using the updated local 'tasks' array
+
+            // ******* IMPORTANT CHANGE HERE *******
+            // After any successful operation (create, update, delete),
+            // re-fetch all tasks to ensure the client-side data is up-to-date.
+            await fetchTasksFromSheet(); // This will re-populate 'tasks' and re-render.
+            // *************************************
+
+            document.getElementById('taskModal').classList.remove('active');
+            // No need to call renderTasks() directly here anymore, fetchTasksFromSheet() handles it.
         } else {
-            console.error("Error saving task:", result.message);
-            alert("Failed to save task: " + result.message);
+            console.error("Server error:", result.error);
+            alert("Error: " + result.error);
         }
     } catch (error) {
         console.error("Network or script error:", error);
-        alert("An error occurred while communicating with the server.");
+        alert("Network or script error: " + error.message);
     }
 }
 
