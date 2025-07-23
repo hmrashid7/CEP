@@ -676,121 +676,168 @@
 </footer>
 </body>
 <script>
-// Paste your Google Apps Script Web App URL here
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxg1uR3GNf3-xNIyjhfwpSy-HfSy_kdL4HVdkbDjtthZMLK8mdPhwgPdtUZs5BQVq3B/exec";
-let currentStatus = null;
-let editingIndex = null;
-let tasks = []; // Initialize as empty, as data will be fetched
+<script>
+let tasks = []; // Tasks will now be fetched from Google Sheet
 
 // Chart instances
 let taskStatusChart;
 let taskPriorityChart;
 let taskCategoryChart;
 
+// >>>>>>>>>>>>>> IMPORTANT: REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL <<<<<<<<<<<<<<<
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxg1uR3GNf3-xNIyjhfwpSy-HfSy_kdL4HVdkbDjtthZMLK8mdPhwgPdtUZs5BQVq3B/exec';
+// Example: const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbu9u_YOUR_ID_HERE_g/exec';
+// Make sure it ends with /exec
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-// Populate Assigned To filter dropdown
-function populateAssignedToFilter() {
-  const assignedToFilter = document.getElementById('assignedToFilter');
-  assignedToFilter.innerHTML = '<option value="">Filter by Assignee</option>'; // Reset
-  const assignees = new Set();
-  tasks.forEach(task => {
-    if (task.AssignedTo) { // Use task.AssignedTo
-      assignees.add(task.AssignedTo); // Use task.AssignedTo
+// --- Utility Functions ---
+
+function showSnackbar(message, isError = false) {
+    let snackbar = document.getElementById('snackbar');
+    if (!snackbar) {
+        const newSnackbar = document.createElement('div');
+        newSnackbar.id = 'snackbar';
+        document.body.appendChild(newSnackbar);
+        snackbar = newSnackbar;
     }
-  });
-  Array.from(assignees).sort().forEach(assignee => {
-    const option = document.createElement('option');
-    option.value = assignee;
-    option.textContent = assignee;
-    assignedToFilter.appendChild(option);
-  });
+    snackbar.textContent = message;
+    snackbar.className = 'snackbar ' + (isError ? 'error' : 'show');
+    setTimeout(() => {
+        snackbar.className = snackbar.className.replace('show', '');
+        if (isError) snackbar.className = snackbar.className.replace('error', '');
+    }, 3000);
 }
 
-// Function to save/update/delete tasks to the Google Sheet
-async function saveTasksToSheet(action, taskData, originalIndex = null) {
-    const payload = {
-        action: action, // "create" or "update" or "delete"
-        task: taskData,
-        rowIndex: originalIndex // For update/delete, pass the row index
-    };
+// --- Google Apps Script Communication using Fetch API ---
 
+async function fetchTasks() {
+  try {
+    const response = await fetch(APPS_SCRIPT_URL);
+    const data = await response.json();
+
+    if (data.error) {
+      console.error("Error fetching tasks:", data.error, data.stack);
+      showSnackbar("Error fetching tasks: " + data.error, true);
+      tasks = []; // Clear tasks on error
+    } else {
+      tasks = data;
+      populateAssignedToFilter();
+      renderTasks();
+      showSnackbar("Tasks loaded from Google Sheet.");
+    }
+  } catch (error) {
+    console.error("Fetch Error (fetchTasks):", error);
+    showSnackbar("Failed to load tasks: " + error.message, true);
+    tasks = []; // Clear tasks on error
+    renderTasks(); // Render to show empty state
+  }
+}
+
+async function sendTaskAction(action, taskData, rowIndex = null) {
     try {
+        const payload = { action, task: taskData };
+        if (rowIndex !== null) {
+            payload.rowIndex = rowIndex;
+        }
+
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain;charset=utf-8', // Apps Script expects text/plain for doPost
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(payload)
         });
-
-        const result = await response.json();
-        if (result.success) {
-            console.log(result.message);
-            // Instead of re-fetching ALL tasks, update the local 'tasks' array directly
-            if (action === "create") {
-                // Add the new task returned by the script (which includes its OriginalIndex)
-                tasks.push(result.task);
-                // Sort tasks by Timestamp in descending order (newest first)
-                tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-            } else if (action === "update") {
-                // Find the task in the local array by its OriginalIndex and update it
-                const updatedTaskIndex = tasks.findIndex(t => t.OriginalIndex === result.task.OriginalIndex);
-                if (updatedTaskIndex !== -1) {
-                    tasks[updatedTaskIndex] = result.task; // Replace with the updated task from the script
-                    // Sort tasks by Timestamp in descending order (newest first)
-                    tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-                }
-            } else if (action === "delete") {
-                // Remove the task from the local array by its OriginalIndex
-                tasks = tasks.filter(t => t.OriginalIndex !== result.deletedRowIndex); // Filter out the deleted task
-            }
-            renderTasks(); // Re-render the UI using the updated local 'tasks' array
-        } else {
-            console.error("Error saving task:", result.message);
-            alert("Failed to save task: " + result.message);
-        }
-    } catch (error) {
-        console.error("Network or script error:", error);
-        alert("An error occurred while communicating with the server.");
-    }
-}
-
-// Function to fetch all tasks from the Google Sheet
-async function fetchTasksFromSheet() {
-    try {
-        // For GET requests, you might need to append a parameter to prevent caching,
-        // or Apps Script will serve cached content. A simple timestamp works.
-        const response = await fetch(APPS_SCRIPT_URL + "?timestamp=" + new Date().getTime());
         const data = await response.json();
 
-        tasks = data.map(task => ({
-            ...task,
-            // Ensure OriginalIndex is a number for consistent comparisons
-            OriginalIndex: parseInt(task.OriginalIndex)
-        }));
-
-        // Sort tasks by Timestamp in descending order (newest first)
-        tasks.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-
-        console.log("Tasks fetched:", tasks);
-        populateAssignedToFilter(); // Re-populate filter after fetching
-        renderTasks(); // Render tasks after fetching
+        if (data.success) {
+            // Re-fetch all tasks to ensure UI is in sync with sheet after modification
+            // For better UX, you could also just update the local 'tasks' array
+            // but re-fetching ensures full consistency.
+            await fetchTasks();
+            showSnackbar(data.message);
+            closeModal(); // Close modal on successful operation
+        } else {
+            console.error(`Error ${action}ing task:`, data.error, data.stack);
+            showSnackbar(`Error ${action}ing task: ` + data.error, true);
+        }
     } catch (error) {
-        console.error("Error fetching tasks:", error);
-        alert("Failed to load tasks from the server. Check console for details.");
+        console.error(`Fetch Error (${action}Task):`, error);
+        showSnackbar(`Failed to ${action} task: ` + error.message, true);
     }
 }
 
+function updateTaskOnSheet(taskData, rowIndex) {
+    sendTaskAction('update', taskData, rowIndex);
+}
 
-function openModal(status, displayIndex = null) { // Renamed parameter
-  currentStatus = status;
-  editingIndex = displayIndex; // Store the display index
+function createTaskOnSheet(taskData) {
+    sendTaskAction('create', taskData);
+}
 
+function deleteTaskOnSheet(rowIndex) {
+    sendTaskAction('delete', null, rowIndex); // No taskData needed for delete
+}
+
+
+// --- Modal & Task Data Handling ---
+
+function populateTaskModal(task) {
+    document.getElementById('modalTitleText').textContent = task.OriginalIndex === undefined ? 'Add New Task' : 'Edit Task';
+    document.getElementById('taskId').value = task.OriginalIndex !== undefined ? task.OriginalIndex : '';
+    document.getElementById('taskTitle').value = task.Title || '';
+    document.getElementById('taskDescription').value = task.Description || '';
+    document.getElementById('taskNotes').value = task.Notes || ''; // Populate Notes field
+    document.getElementById('taskCategory').value = task.Category || '';
+    document.getElementById('taskPriority').value = task.Priority || '';
+    document.getElementById('taskDueDate').value = task.DueDate || '';
+    document.getElementById('taskProgress').value = task.Progress !== undefined ? task.Progress : 0;
+    document.getElementById('taskAssignedTo').value = task.AssignedTo || '';
+    document.getElementById('taskEstimatedCost').value = task.EstimatedCost !== undefined ? task.EstimatedCost : '';
+
+    // Store current status, timestamp, and archive status in hidden fields
+    document.getElementById('taskCurrentStatus').value = task.Status || '';
+    document.getElementById('taskTimestamp').value = task.Timestamp || '';
+    document.getElementById('taskIsArchived').value = task.IsArchived ? 'true' : 'false';
+}
+
+function getTaskDataFromModal() {
+    const originalIndex = document.getElementById('taskId').value !== '' ? parseInt(document.getElementById('taskId').value) : undefined;
+    const title = document.getElementById('taskTitle').value.trim();
+    const description = document.getElementById('taskDescription').value.trim();
+    const notes = document.getElementById('taskNotes').value.trim(); // Get value from Notes textarea
+    const category = document.getElementById('taskCategory').value.trim();
+    const priority = document.getElementById('taskPriority').value.trim();
+    const dueDate = document.getElementById('taskDueDate').value;
+    let progress = parseInt(document.getElementById('taskProgress').value, 10);
+    const assignedTo = document.getElementById('taskAssignedTo').value.trim();
+    let estimatedCost = parseFloat(document.getElementById('taskEstimatedCost').value);
+
+    // Get status, timestamp, and archive status from hidden fields for existing tasks
+    const currentStatus = document.getElementById('taskCurrentStatus').value;
+    const timestamp = document.getElementById('taskTimestamp').value;
+    const isArchived = document.getElementById('taskIsArchived').value === 'true';
+
+    return {
+        OriginalIndex: originalIndex,
+        Title: title,
+        Description: description,
+        Notes: notes,
+        Category: category,
+        Priority: priority,
+        Status: currentStatus, // Use current status from hidden field
+        DueDate: dueDate,
+        Progress: isNaN(progress) ? 0 : progress,
+        AssignedTo: assignedTo,
+        EstimatedCost: isNaN(estimatedCost) || estimatedCost < 0 ? 0 : estimatedCost,
+        Timestamp: timestamp || new Date().toISOString(), // Use existing timestamp or new one
+        IsArchived: isArchived // Use existing archive status
+    };
+}
+
+
+function openModal(status, originalIndex = null) {
   const modalBackdrop = document.getElementById("modalBackdrop");
   const taskModal = document.getElementById("taskModal");
-
-  // Ensure pointer events are enabled when showing the modal
-  taskModal.style.pointerEvents = 'auto'; // [Fix] Re-enable pointer events when modal is opened
 
   modalBackdrop.classList.remove('hide');
   taskModal.classList.remove('hide');
@@ -801,34 +848,34 @@ function openModal(status, displayIndex = null) { // Renamed parameter
   modalBackdrop.classList.add('show');
   taskModal.classList.add('show');
 
-
-  const modalTitleText = document.getElementById("modalTitleText");
   const modalActionButton = document.getElementById("modalActionButton");
-
-  if (editingIndex !== null) {
-    const task = tasks[editingIndex]; // Use displayIndex to get the task
-    document.getElementById("modalTitle").value = task.Title; // Match sheet header
-    document.getElementById("modalDesc").value = task.Description; // Match sheet header
-    document.getElementById("modalCategory").value = task.Category; // Match sheet header
-    document.getElementById("modalPriority").value = task.Priority; // Match sheet header
-    document.getElementById("modalDueDate").value = task.DueDate || ""; // Match sheet header
-    document.getElementById("modalProgress").value = task.Progress !== undefined ? task.Progress : 0; // Match sheet header
-    document.getElementById("modalAssignedTo").value = task.AssignedTo || ""; // Match sheet header
-    document.getElementById("modalEstimatedCost").value = task.EstimatedCost !== undefined ? task.EstimatedCost : ""; // Match sheet header
-
-    modalTitleText.textContent = "Edit Task";
-    modalActionButton.textContent = "Update Task";
+  if (originalIndex !== null) {
+    const task = tasks.find(t => t.OriginalIndex === originalIndex);
+    if (task) {
+        populateTaskModal(task);
+        modalActionButton.textContent = "Update Task";
+    } else {
+        console.error("Task not found for editing with OriginalIndex:", originalIndex);
+        showSnackbar("Error: Task not found for editing.", true);
+        closeModal();
+    }
   } else {
     // Clear fields for new task
-    document.getElementById("modalTitle").value = "";
-    document.getElementById("modalDesc").value = "";
-    document.getElementById("modalCategory").value = "";
-    document.getElementById("modalPriority").value = "";
-    document.getElementById("modalDueDate").value = "";
-    document.getElementById("modalProgress").value = 0;
-    document.getElementById("modalAssignedTo").value = ""; // New
-    document.getElementById("modalEstimatedCost").value = ""; // New
-    modalTitleText.textContent = "Create Task";
+    document.getElementById("taskId").value = "";
+    document.getElementById("taskTitle").value = "";
+    document.getElementById("taskDescription").value = "";
+    document.getElementById("taskNotes").value = ""; // Clear Notes
+    document.getElementById("taskCategory").value = "";
+    document.getElementById("taskPriority").value = "";
+    document.getElementById("taskDueDate").value = "";
+    document.getElementById("taskProgress").value = 0;
+    document.getElementById("taskAssignedTo").value = "";
+    document.getElementById("taskEstimatedCost").value = "";
+    document.getElementById("taskCurrentStatus").value = status; // Set initial status for new task
+    document.getElementById("taskTimestamp").value = ""; // Clear timestamp
+    document.getElementById("taskIsArchived").value = "false"; // New tasks are not archived
+
+    document.getElementById("modalTitleText").textContent = "Create Task";
     modalActionButton.textContent = "Create Task";
   }
 }
@@ -836,8 +883,6 @@ function openModal(status, displayIndex = null) { // Renamed parameter
 function closeModal() {
   const modalBackdrop = document.getElementById("modalBackdrop");
   const taskModal = document.getElementById("taskModal");
-
-  taskModal.style.pointerEvents = 'none'; // [Fix] Immediately disable pointer events when closing
 
   modalBackdrop.classList.remove('show');
   modalBackdrop.classList.add('hide');
@@ -851,18 +896,21 @@ function closeModal() {
     if (backdropAnimationEnded && modalAnimationEnded) {
       taskModal.style.display = 'none';
       modalBackdrop.style.display = 'none';
-      // No need to re-enable pointer-events here, as it's done when modal is opened
 
-      document.getElementById("modalTitle").value = "";
-      document.getElementById("modalDesc").value = "";
-      document.getElementById("modalCategory").value = "";
-      document.getElementById("modalPriority").value = "";
-      document.getElementById("modalDueDate").value = "";
-      document.getElementById("modalProgress").value = 0;
-      document.getElementById("modalAssignedTo").value = ""; // New
-      document.getElementById("modalEstimatedCost").value = ""; // New
-      editingIndex = null;
-      currentStatus = null;
+      // Clear all modal fields after closing
+      document.getElementById("taskId").value = "";
+      document.getElementById("taskTitle").value = "";
+      document.getElementById("taskDescription").value = "";
+      document.getElementById("taskNotes").value = "";
+      document.getElementById("taskCategory").value = "";
+      document.getElementById("taskPriority").value = "";
+      document.getElementById("taskDueDate").value = "";
+      document.getElementById("taskProgress").value = 0;
+      document.getElementById("taskAssignedTo").value = "";
+      document.getElementById("taskEstimatedCost").value = "";
+      document.getElementById("taskCurrentStatus").value = "";
+      document.getElementById("taskTimestamp").value = "";
+      document.getElementById("taskIsArchived").value = "false";
     }
   };
 
@@ -881,91 +929,48 @@ function closeModal() {
   modalBackdrop.addEventListener('animationend', backdropHandler, { once: true });
   taskModal.addEventListener('animationend', modalHandler, { once: true });
 
+  // Fallback in case animationend doesn't fire (e.g., if display was already none)
   setTimeout(() => {
-    if (!backdropAnimationEnded) {
-      modalBackdrop.style.display = 'none';
-    }
-    if (!modalAnimationEnded) {
-      taskModal.style.display = 'none';
-    }
     if (!backdropAnimationEnded || !modalAnimationEnded) {
-        document.getElementById("modalTitle").value = "";
-        document.getElementById("modalDesc").value = "";
-        document.getElementById("modalCategory").value = "";
-        document.getElementById("modalPriority").value = "";
-        document.getElementById("modalDueDate").value = "";
-        document.getElementById("modalProgress").value = 0;
-        document.getElementById("modalAssignedTo").value = ""; // New
-        document.getElementById("modalEstimatedCost").value = ""; // New
-        editingIndex = null;
-        currentStatus = null;
+      taskModal.style.display = 'none';
+      modalBackdrop.style.display = 'none';
+      document.getElementById("taskId").value = "";
+      document.getElementById("taskTitle").value = "";
+      document.getElementById("taskDescription").value = "";
+      document.getElementById("taskNotes").value = "";
+      document.getElementById("taskCategory").value = "";
+      document.getElementById("taskPriority").value = "";
+      document.getElementById("taskDueDate").value = "";
+      document.getElementById("taskProgress").value = 0;
+      document.getElementById("taskAssignedTo").value = "";
+      document.getElementById("taskEstimatedCost").value = "";
+      document.getElementById("taskCurrentStatus").value = "";
+      document.getElementById("taskTimestamp").value = "";
+      document.getElementById("taskIsArchived").value = "false";
     }
-  }, 400);
+  }, 400); // Slightly longer than animation duration
 }
 
 
-async function saveTask() {
-  const title = document.getElementById("modalTitle").value.trim();
-  const description = document.getElementById("modalDesc").value.trim();
-  const category = document.getElementById("modalCategory").value.trim();
-  const priority = document.getElementById("modalPriority").value.trim();
-  const dueDate = document.getElementById("modalDueDate").value;
-  let progress = parseInt(document.getElementById("modalProgress").value, 10);
-  const assignedTo = document.getElementById("modalAssignedTo").value.trim();
-  let estimatedCost = parseFloat(document.getElementById("modalEstimatedCost").value);
+function saveTaskChanges() {
+  const taskData = getTaskDataFromModal();
 
-  if (currentStatus === null) {
-    console.error("Error: currentStatus is null. Modal might not have been opened correctly.");
-    alert("Error: Task status could not be determined. Please close and re-open the task dialog.");
-    return;
-  }
-
-  if (!title || !description || !category || !priority) {
+  if (!taskData.Title || !taskData.Description || !taskData.Category || !taskData.Priority) {
     alert("Please fill out all required fields (Title, Description, Category, Priority).");
     return;
   }
 
-  if (isNaN(progress) || progress < 0 || progress > 100) {
-      alert("Progress must be a number between 0 and 100.");
-      return;
-  }
-
-  if (isNaN(estimatedCost) || estimatedCost < 0) {
-    estimatedCost = 0;
-  }
-
-  // Build task object, but DO NOT set Timestamp or OriginalIndex yet for new tasks
-  const task = {
-    Title: title,
-    Description: description,
-    Category: category,
-    Priority: priority,
-    Status: currentStatus,
-    DueDate: dueDate,
-    Progress: progress,
-    AssignedTo: assignedTo,
-    EstimatedCost: estimatedCost,
-    IsArchived: editingIndex !== null ? (tasks[editingIndex].IsArchived || false) : false
-  };
-
-  if (editingIndex !== null) {
-    // For existing tasks, we need to send the original timestamp and OriginalIndex
-    const taskToUpdate = tasks[editingIndex];
-    if (taskToUpdate && taskToUpdate.OriginalIndex !== undefined) {
-        task.Timestamp = taskToUpdate.Timestamp; // Keep original timestamp for updates
-        await saveTasksToSheet("update", task, taskToUpdate.OriginalIndex);
-    } else {
-        alert("Error: Could not find original task data for update.");
-    }
+  if (taskData.OriginalIndex !== undefined) {
+    // Update existing task
+    updateTaskOnSheet(taskData, taskData.OriginalIndex);
   } else {
-    // For new tasks, Timestamp and OriginalIndex will be set by the Apps Script
-    await saveTasksToSheet("create", task);
+    // Create new task
+    createTaskOnSheet(taskData);
   }
-  closeModal();
 }
 
 // Add task directly from inline input
-async function addInlineTask(status, inputId) {
+function addInlineTask(status, inputId) {
   const inputField = document.getElementById(inputId);
   const title = inputField.value.trim();
 
@@ -974,10 +979,11 @@ async function addInlineTask(status, inputId) {
     return;
   }
 
-  const task = {
+  const taskData = {
     Title: title,
     Description: "",
-    Category: "Uncategorized", // Default to Uncategorized for quick add
+    Notes: "", // Default empty notes
+    Category: "General", // Default category for quick add
     Priority: "Low", // Default to low priority for quick add
     Status: status,
     DueDate: "",
@@ -987,49 +993,47 @@ async function addInlineTask(status, inputId) {
     IsArchived: false
   };
 
-  await saveTasksToSheet("create", task);
-  inputField.value = "";
+  createTaskOnSheet(taskData);
+  inputField.value = ""; // Clear input field after sending
 }
 
 
-function editTask(displayIndex) { // Renamed parameter
-  openModal(tasks[displayIndex].Status, displayIndex); // Pass the status and display index
+function editTask(originalIndex) {
+  openModal(null, originalIndex); // Pass null for status as it's an edit, originalIndex is key
 }
 
-// Renamed deleteTask to removeTask for clarity (hard delete)
-async function removeTask(displayIndex) { // Renamed to displayIndex to avoid confusion with sheet index
+function removeTask(originalIndex) {
   if (confirm("Are you sure you want to permanently delete this task? This action cannot be undone.")) {
-    const taskToDelete = tasks[displayIndex]; // Get the task from the currently displayed/filtered tasks array
-    if (taskToDelete && taskToDelete.OriginalIndex !== undefined) {
-        const taskElement = document.getElementById(`task-${displayIndex}`); // Use displayIndex here
-        if (taskElement) {
-          taskElement.style.animation = 'popOut 0.3s ease-in forwards';
-          taskElement.addEventListener('animationend', async () => {
-            await saveTasksToSheet("delete", {}, taskToDelete.OriginalIndex); // Send delete action with sheet row index
-            // No need to splice 'tasks' array here, fetchTasksFromSheet will refresh it
-          }, { once: true });
-        } else {
-          await saveTasksToSheet("delete", {}, taskToDelete.OriginalIndex);
-        }
+    const taskElement = document.getElementById(`task-${originalIndex}`);
+    if (taskElement) {
+      taskElement.style.animation = 'popOut 0.3s ease-in forwards';
+      taskElement.addEventListener('animationend', () => {
+        deleteTaskOnSheet(originalIndex);
+      }, { once: true });
     } else {
-        alert("Error: Could not find original task data for deletion.");
+      deleteTaskOnSheet(originalIndex);
     }
   }
 }
 
 // Function to toggle archive status
-async function toggleArchiveTask(displayIndex) {
-  const task = tasks[displayIndex];
-  const newArchiveStatus = !task.IsArchived; // Use IsArchived
+function toggleArchiveTask(originalIndex) {
+  const task = tasks.find(t => t.OriginalIndex === originalIndex);
+  if (!task) {
+      showSnackbar("Error: Task not found for archiving.", true);
+      return;
+  }
+
+  const newArchiveStatus = !task.IsArchived;
   const action = newArchiveStatus ? "archive" : "unarchive";
 
   if (confirm(`Are you sure you want to ${action} this task?`)) {
-    const updatedTask = { ...task, IsArchived: newArchiveStatus }; // Use IsArchived
+    const updatedTaskData = { ...task, IsArchived: newArchiveStatus };
     // If unarchived and in 'Done' status, ensure progress is 100%
-    if (!newArchiveStatus && updatedTask.Status === 'Done') { // Use Status
-        updatedTask.Progress = 100; // Use Progress
+    if (!newArchiveStatus && updatedTaskData.Status === 'Done') {
+        updatedTaskData.Progress = 100;
     }
-    await saveTasksToSheet("update", updatedTask, task.OriginalIndex);
+    updateTaskOnSheet(updatedTaskData, originalIndex);
   }
 }
 
@@ -1100,56 +1104,57 @@ function renderTasks() {
     document.getElementById(status).closest('article').classList.remove('drag-over');
   });
 
-  const displayedTasks = []; // This array will hold tasks to be displayed, with their original index in the global `tasks` array
-
-  tasks.forEach((task, globalIndex) => { // Use globalIndex for iteration
-    // Determine if the task should be rendered based on archive status and showArchived checkbox
-    const shouldRender = (!task.IsArchived || showArchived); // Use task.IsArchived
+  const filteredTasks = [];
+  tasks.forEach(task => { // tasks array is already from sheet, no need for originalIndex here
+    const shouldRender = (!task.IsArchived || showArchived);
 
     if (!shouldRender) {
         return;
     }
 
-    const taskTitle = task.Title || ""; // Use task.Title
-    const taskDescription = task.Description || ""; // Use task.Description
-    const taskCategory = task.Category || ""; // Use task.Category
-    const taskPriority = task.Priority || ""; // Use task.Priority
-    const taskAssignedTo = task.AssignedTo || ""; // Use task.AssignedTo
-    const taskStatus = task.Status || ""; // Use task.Status
+    const taskTitle = task.Title || "";
+    const taskDescription = task.Description || "";
+    const taskCategory = task.Category || "";
+    const taskPriority = task.Priority || "";
+    const taskAssignedTo = task.AssignedTo || "";
+    const taskStatus = task.Status || "";
 
     const matchesSearch = search === "" ||
       taskTitle.toLowerCase().includes(search) ||
-      taskDescription.toLowerCase().includes(search);
+      taskDescription.toLowerCase().includes(search) ||
+      task.Notes.toLowerCase().includes(search); // Include Notes in search
 
     const matchesCategory = categoryFilterValue === "" || taskCategory === categoryFilterValue;
     const matchesPriority = priorityFilterValue === "" || taskPriority === priorityFilterValue;
     const matchesAssignedTo = assignedToFilterValue === "" || taskAssignedTo === assignedToFilterValue;
 
     if (matchesSearch && matchesCategory && matchesPriority && matchesAssignedTo) {
-      displayedTasks.push({task, displayIndex: globalIndex}); // Store the global index for actions
+      filteredTasks.push(task); // Push the task object itself
     }
   });
 
 
-  displayedTasks.forEach(({task, displayIndex}) => { // Iterate over displayedTasks with displayIndex
+  filteredTasks.forEach(task => {
     const taskTitle = task.Title || "Untitled";
     const taskDescription = task.Description || "No description.";
+    const taskNotes = task.Notes || ""; // Get Notes
     const taskCategory = task.Category || "Uncategorized";
     const taskPriority = task.Priority || "Low";
     const taskDueDate = task.DueDate ? `📅 Due: ${task.DueDate}` : '';
     const taskProgress = task.Progress !== undefined ? task.Progress : 0;
-    const taskTimestamp = task.Timestamp ? `Created: ${formatTimestamp(task.Timestamp)}` : '';
+    const taskTimestamp = task.Timestamp ? formatTimestamp(task.Timestamp) : '';
+    const taskLastModified = task.LastModified ? formatTimestamp(task.LastModified) : ''; // Get Last Modified
     const taskAssignedTo = task.AssignedTo ? `🧑‍💻 Assigned: ${task.AssignedTo}` : '';
     const taskEstimatedCost = task.EstimatedCost !== undefined && task.EstimatedCost > 0 ? `💰 Est. Cost: $${task.EstimatedCost.toLocaleString()}` : '';
 
     const el = document.createElement("div");
-    el.id = `task-${displayIndex}`; // Use displayIndex for element ID
+    el.id = `task-${task.OriginalIndex}`; // Use OriginalIndex from backend
     const categoryClass = (task.Category || "Uncategorized").replace(/\s/g, '\\ ');
     const priorityClass = (task.Priority || "Low");
 
-    el.className = `task ${categoryClass} ${priorityClass}`;
+    el.className = `task-card ${categoryClass} ${priorityClass}`; // Changed to task-card
     el.draggable = true;
-    el.ondragstart = e => dragStart(e, displayIndex); // Pass displayIndex
+    el.ondragstart = e => dragStart(e, task.OriginalIndex); // Use OriginalIndex
 
     const subtleTaskBg = getSubtleTaskBackgroundColor(taskPriority);
     let progressFillColor = getProgressColor(taskPriority);
@@ -1176,32 +1181,41 @@ function renderTasks() {
 
     el.innerHTML = `
       <div>
-          <strong>${taskTitle}</strong><br>
-          <em>${taskCategory}</em><br>
-          <span>${getPriorityIcon(taskPriority)} ${taskPriority}</span>
-          <p>${taskDescription}</p>
+          <div class="task-header">
+              <h3>${taskTitle}</h3>
+              <div class="task-actions">
+                  <button class="icon-button edit-button" onclick="editTask(${task.OriginalIndex})">✏️</button>
+                  <button class="icon-button delete-button" onclick="removeTask(${task.OriginalIndex})">🗑️</button>
+              </div>
+          </div>
+          <p class="task-description">${taskDescription || 'No description provided.'}</p>
+          ${taskNotes ? `<p class="task-notes"><strong>Notes:</strong> ${taskNotes}</p>` : ''}
       </div>
       <div class="task-meta-details">
+          <span>${getPriorityIcon(taskPriority)} ${taskPriority}</span>
+          <span>${taskCategory}</span>
           ${taskAssignedTo ? `<span>${taskAssignedTo}</span>` : ''}
           ${taskEstimatedCost ? `<span>${taskEstimatedCost}</span>` : ''}
       </div>
       <div class="task-info">
           <span class="task-progress-text">${progressText}</span>
           ${taskDueDate ? `<span>${taskDueDate}</span>` : ''}
-          ${taskTimestamp ? `<span>${taskTimestamp}</span>` : ''}
-          <button onclick="editTask(${displayIndex})">📝 Edit</button>
-          <button onclick="toggleArchiveTask(${displayIndex})" title="Toggle Archive Status">🗄️ ${task.IsArchived ? 'Unarchive' : 'Archive'}</button>
-          <button onclick="removeTask(${displayIndex})" title="Permanently Delete Task">🗑️ Delete</button>
+          <div class="task-dates">
+              ${taskTimestamp ? `<span>Created: ${taskTimestamp}</span>` : ''}
+              ${taskLastModified ? `<span class="last-modified">Modified: ${taskLastModified}</span>` : ''}
+          </div>
+          <button onclick="toggleArchiveTask(${task.OriginalIndex})" title="Toggle Archive Status">🗄️ ${task.IsArchived ? 'Unarchive' : 'Archive'}</button>
       </div>
     `;
 
-    const targetColumn = document.getElementById(task.Status);
+    const targetColumn = document.getElementById(task.Status); // Use task.Status
     if (targetColumn) {
         targetColumn.appendChild(el);
     }
   });
 
 
+  // Calculate and display overall progress correctly, ignoring archived tasks for this count
   const nonArchivedTasks = tasks.filter(task => !task.IsArchived);
   const totalActualTasks = nonArchivedTasks.length;
   const completedActualTasks = nonArchivedTasks.filter(task => task.Status === "Done").length;
@@ -1211,13 +1225,14 @@ function renderTasks() {
       ? `✅ ${completedActualTasks} of ${totalActualTasks} tasks completed`
       : "📋 No active tasks yet — add one to get started";
 
+  // Update charts and health status
   updateTaskCharts();
   updateOverdueCount();
 }
 
 
-function dragStart(event, displayIndex) { // Renamed parameter
-  event.dataTransfer.setData("text", displayIndex);
+function dragStart(event, originalIndex) {
+  event.dataTransfer.setData("text/plain", originalIndex); // Use originalIndex for data transfer
 }
 
 function allowDrop(event) {
@@ -1233,26 +1248,28 @@ function dragLeave(event) {
   }
 }
 
-async function drop(event, newStatus) {
+function drop(event, newStatus) {
   event.preventDefault();
-  const displayIndex = event.dataTransfer.getData("text"); // This is the index in the filtered/displayed tasks array
+  const originalIndex = parseInt(event.dataTransfer.getData("text/plain"), 10); // Parse to int
 
   document.querySelectorAll('article').forEach(article => {
     article.classList.remove('drag-over');
   });
 
-  const taskToUpdate = tasks[displayIndex];
-  if (taskToUpdate && taskToUpdate.OriginalIndex !== undefined) {
-    const updatedTask = { ...taskToUpdate, Status: newStatus };
-    // If dropped into 'Done', set progress to 100% and unarchive if it was archived
+  const taskToUpdate = tasks.find(t => t.OriginalIndex === originalIndex);
+  if (taskToUpdate) {
+    const oldStatus = taskToUpdate.Status;
+    taskToUpdate.Status = newStatus;
+
     if (newStatus === 'Done') {
-        updatedTask.Progress = 100;
-        updatedTask.IsArchived = false; // Unarchive if moved to Done
-    } else {
-        updatedTask.Progress = Math.min(updatedTask.Progress, 99); // Set to max 99 if moved out of done
-        updatedTask.IsArchived = false; // Unarchive if moved out of Done
+        taskToUpdate.Progress = 100;
+        taskToUpdate.IsArchived = false; // Unarchive if moved to Done
+    } else if (oldStatus === 'Done' && newStatus !== 'Done') {
+        taskToUpdate.Progress = Math.min(taskToUpdate.Progress, 99); // Set to max 99 if moved out of done
+        taskToUpdate.IsArchived = false; // Unarchive if moved out of Done
     }
-    await saveTasksToSheet("update", updatedTask, taskToUpdate.OriginalIndex);
+
+    updateTaskOnSheet(taskToUpdate, originalIndex); // Send updated task to backend
   }
 }
 
@@ -1262,10 +1279,10 @@ function exportToExcel() {
     return;
   }
 
-  // Create a copy of tasks to manipulate for export, without altering original data
   const exportTasks = tasks.map(task => ({
       Title: task.Title,
       Description: task.Description,
+      Notes: task.Notes,
       Category: task.Category,
       Priority: task.Priority,
       Status: task.Status,
@@ -1274,7 +1291,8 @@ function exportToExcel() {
       AssignedTo: task.AssignedTo,
       EstimatedCost: task.EstimatedCost,
       CreatedTimestamp: formatTimestamp(task.Timestamp),
-      IsArchived: task.IsArchived ? 'Yes' : 'No' // Export as readable string
+      LastModifiedTimestamp: formatTimestamp(task.LastModified),
+      IsArchived: task.IsArchived ? 'Yes' : 'No'
   }));
 
 
@@ -1284,13 +1302,31 @@ function exportToExcel() {
   XLSX.writeFile(wb, "NeonCivilDashboard_Tasks.xlsx");
 }
 
+// Populate Assigned To filter dropdown
+function populateAssignedToFilter() {
+  const assignedToFilter = document.getElementById('assignedToFilter');
+  assignedToFilter.innerHTML = '<option value="">Filter by Assignee</option>'; // Reset
+  const assignees = new Set();
+  tasks.forEach(task => {
+    if (task.AssignedTo) {
+      assignees.add(task.AssignedTo);
+    }
+  });
+  Array.from(assignees).sort().forEach(assignee => {
+    const option = document.createElement('option');
+    option.value = assignee;
+    option.textContent = assignee;
+    assignedToFilter.appendChild(option);
+  });
+}
+
 // *** Chart.js Functions ***
 function updateTaskCharts() {
-    const activeTasks = tasks.filter(task => !task.IsArchived); // Use IsArchived
+    const activeTasks = tasks.filter(task => !task.IsArchived);
 
     // Data for Status Chart
     const statusCounts = activeTasks.reduce((acc, task) => {
-        acc[task.Status] = (acc[task.Status] || 0) + 1; // Use task.Status
+        acc[task.Status] = (acc[task.Status] || 0) + 1;
         return acc;
     }, {});
     const statusLabels = ["Pending", "In Progress", "Done"];
@@ -1299,7 +1335,7 @@ function updateTaskCharts() {
 
     // Data for Priority Chart
     const priorityCounts = activeTasks.reduce((acc, task) => {
-        acc[task.Priority] = (acc[task.Priority] || 0) + 1; // Use task.Priority
+        acc[task.Priority] = (acc[task.Priority] || 0) + 1;
         return acc;
     }, {});
     const priorityLabels = ["High", "Medium", "Low"];
@@ -1308,8 +1344,8 @@ function updateTaskCharts() {
 
     // Data for Category Chart
     const categoryCounts = activeTasks.reduce((acc, task) => {
-        if (task.Category) { // Use task.Category
-            acc[task.Category] = (acc[task.Category] || 0) + 1; // Use task.Category
+        if (task.Category) {
+            acc[task.Category] = (acc[task.Category] || 0) + 1;
         }
         return acc;
     }, {});
@@ -1428,12 +1464,13 @@ function updateTaskCharts() {
 
 // Function to update the overdue task count
 function updateOverdueCount() {
-    const overdueTasks = tasks.filter(task => !task.IsArchived && isOverdue(task.DueDate, task.Status)); // Use IsArchived, DueDate, Status
+    const overdueTasks = tasks.filter(task => !task.IsArchived && isOverdue(task.DueDate, task.Status));
     document.getElementById('overdueCount').textContent = overdueTasks.length;
 }
 
 
 // Initial calls when the script loads
-fetchTasksFromSheet(); // Fetch tasks from Google Sheet on load
+document.addEventListener('DOMContentLoaded', fetchTasks); // Fetch tasks from Google Sheet on load
+</script>
 </script>
 </html>
