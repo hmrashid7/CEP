@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="dashboard" id="taskDashboard">
-    <!-- Task cards go here -->
+    <!-- Tasks will be dynamically inserted here -->
   </div>
 
   <!-- Task Detail Modal -->
@@ -28,6 +28,15 @@
   </div>
 
   <script>
+    const backendURL = 'https://hmrashid7.sweetorashid.workers.dev/';
+
+    async function fetchTasks() {
+      const res = await fetch(backendURL);
+      const tasks = await res.json();
+      document.getElementById("taskDashboard").innerHTML = "";
+      tasks.forEach(task => renderTaskCard(task));
+    }
+
     function openTaskDetailModal(task) {
       document.getElementById("modalTitle").textContent = task.Title || "Untitled";
       document.getElementById("modalCreated").textContent = task.Timestamp || "Unknown";
@@ -55,7 +64,7 @@
       };
 
       try {
-        const response = await fetch('https://hmrashid7.sweetorashid.workers.dev/', {
+        const response = await fetch(backendURL, {
           method: "POST",
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -69,6 +78,7 @@
         if (result.success) {
           alert("Reason added to task log.");
           document.getElementById("taskDetailModal").classList.add("hidden");
+          fetchTasks();
         } else {
           console.error(result.error);
           alert("Failed to save reason.");
@@ -79,11 +89,6 @@
       }
     }
 
-    document.getElementById("closeTaskDetail").onclick = () => {
-      document.getElementById("taskDetailModal").classList.add("hidden");
-    };
-
-    // Hook into your real renderTaskCard logic
     function renderTaskCard(task) {
       const taskCard = document.createElement("div");
       taskCard.className = "task-card";
@@ -94,14 +99,52 @@
         </div>
         <div class="task-body">
           <p>${task.Description || "No description."}</p>
+          <small>Status: ${task.Status || ""}</small><br />
+          <small>Due: ${task.DueDate || ""}</small>
         </div>
       `;
       taskCard.addEventListener("click", () => openTaskDetailModal(task));
       document.getElementById("taskDashboard").appendChild(taskCard);
     }
+
+    document.getElementById("closeTaskDetail").onclick = () => {
+      document.getElementById("taskDetailModal").classList.add("hidden");
+    };
+
+    // On load
+    fetchTasks();
   </script>
 
   <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #000;
+      color: #fff;
+      margin: 0;
+      padding: 1rem;
+    }
+    .dashboard {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    .task-card {
+      background: #111;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #0ff2;
+      cursor: pointer;
+    }
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      font-size: 1.1em;
+      margin-bottom: 0.5rem;
+    }
+    .priority {
+      color: #0ff;
+    }
     .modal.hidden {
       display: none;
     }
